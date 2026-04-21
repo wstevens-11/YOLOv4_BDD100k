@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Data and checkpoints
+checkpoints/
+runs/
+*.pt
+*.pth
+*.zip
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+*.egg-info/
