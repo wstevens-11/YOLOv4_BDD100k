@@ -141,12 +141,12 @@ class BDD100k(data.Dataset):
             if label[scale_idx][anchor, i, j, self.C] == 1:
                 continue
 
-            label[scale_idx][anchor, i, j, self.C] = 1               # objectness
-            label[scale_idx][anchor, i, j, self.C + 1] = Sx * x - j  # x offset
-            label[scale_idx][anchor, i, j, self.C + 2] = Sy * y - i  # y offset
-            label[scale_idx][anchor, i, j, self.C + 3] = Sx * w      # width
-            label[scale_idx][anchor, i, j, self.C + 4] = Sy * h      # height
-            label[scale_idx][anchor, i, j, obj_class - 1] = 1        # class index
+            label[scale_idx][anchor, i, j, self.C] = 1
+            label[scale_idx][anchor, i, j, self.C + 1] = x      # absolute normalized x
+            label[scale_idx][anchor, i, j, self.C + 2] = y      # absolute normalized y
+            label[scale_idx][anchor, i, j, self.C + 3] = w      # absolute normalized w
+            label[scale_idx][anchor, i, j, self.C + 4] = h      # absolute normalized h
+            label[scale_idx][anchor, i, j, obj_class - 1] = 1
 
             # Ignore lower-IoU anchors
             for a_idx in range(self.n_anchors):
