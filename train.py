@@ -35,6 +35,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--checkpoint', type=str, default='', help='path to checkpoint to resume from')
     parser.add_argument('--save_dir', type=str, default='checkpoints/')
+    parser.add_argument('--subset', type=int, default=0, help='use only N images (0 = full dataset)')
     return parser.parse_args()
 
 
@@ -132,6 +133,11 @@ def main():
     S = [(48, 80), (24, 40), (12, 20)]
 
     train_dataset = BDD100k(root=args.root, train=True, transform=transform, anchors=ANCHORS, S=S)
+    
+    if args.subset > 0:
+        from torch.utils.data import Subset
+        train_dataset = Subset(train_dataset, range(args.subset))
+        print(f'Using subset of {args.subset} train images')
 
     full_val_dataset = BDD100k(root=args.root, train=False, transform=transform, anchors=ANCHORS, S=S)
     val_size = int(0.8 * len(full_val_dataset))

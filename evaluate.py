@@ -1,7 +1,8 @@
 import torch
 import math
 import numpy as np
-from postprocess import get_bboxes, box_iou_xyxy
+from postprocess import get_bboxes, box_iou_xyxy, batch_box_iou
+from torchmetrics.detection import MeanAveragePrecision
 from utils import xywh_to_xyxy
 from tqdm import tqdm
 
@@ -109,12 +110,12 @@ class DetectionMetric:
                         continue
                     obj_entries = t[Iobj]
                     classes = obj_entries[..., :C].argmax(dim=-1)
-                    boxes_norm = obj_entries[..., C+1:C+5].clone()
-                    boxes_norm[..., 0] *= img_width
-                    boxes_norm[..., 1] *= img_height
-                    boxes_norm[..., 2] *= img_width
-                    boxes_norm[..., 3] *= img_height
-                    boxes_xyxy = xywh_to_xyxy(boxes_norm)
+                    boxes = obj_entries[..., C+1:C+5].clone()
+                    boxes[..., 0] *= img_width
+                    boxes[..., 1] *= img_height
+                    boxes[..., 2] *= img_width
+                    boxes[..., 3] *= img_height
+                    boxes_xyxy = xywh_to_xyxy(boxes)
                     for cls, box in zip(classes.tolist(), boxes_xyxy):
                         gt_by_class[int(cls)].append(box)
                         gt_counts[int(cls)] += 1
@@ -122,34 +123,32 @@ class DetectionMetric:
                 dets = det_results[b]
                 if dets.shape[0] == 0:
                     continue
-                dets = dets[dets[:, 1].argsort(descending=True)]
 
                 for cls in range(n_classes):
                     cls_mask = dets[:, 0] == cls
                     cls_dets = dets[cls_mask]
                     if cls_dets.shape[0] == 0:
                         continue
-                    cls_confs = cls_dets[:, 1].numpy()
+                    cls_dets = cls_dets[cls_dets[:, 1].argsort(descending=True)]
 
                     if len(gt_by_class[cls]) == 0:
-                        pred_boxes[cls].extend([(c, 0) for c in cls_confs])
+                        for d in cls_dets:
+                            pred_boxes[cls].append((d[1].item(), 0))
                         continue
 
                     gt_boxes = torch.stack(gt_by_class[cls])
                     det_boxes_xyxy = xywh_to_xyxy(cls_dets[:, 2:6])
-                    ious = batch_box_iou(det_boxes_xyxy, gt_boxes)  # (N_dets, N_gt)
-
+                    ious = batch_box_iou(det_boxes_xyxy, gt_boxes)
                     best_ious, best_idxs = ious.max(dim=1)
-                    best_ious = best_ious.numpy()
-                    best_idxs = best_idxs.numpy()
 
-                    matched = np.zeros(len(gt_by_class[cls]), dtype=bool)
+                    matched = [False] * len(gt_by_class[cls])
                     for det_i in range(cls_dets.shape[0]):
-                        if best_ious[det_i] >= iou_threshold and not matched[best_idxs[det_i]]:
-                            pred_boxes[cls].append((cls_confs[det_i], 1))
-                            matched[best_idxs[det_i]] = True
+                        conf = cls_dets[det_i, 1].item()
+                        if best_ious[det_i].item() >= iou_threshold and not matched[best_idxs[det_i].item()]:
+                            pred_boxes[cls].append((conf, 1))
+                            matched[best_idxs[det_i].item()] = True
                         else:
-                            pred_boxes[cls].append((cls_confs[det_i], 0))
+                            pred_boxes[cls].append((conf, 0))
 
         per_class_ap = {}
         for cls in range(n_classes):

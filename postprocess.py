@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torchvision.utils import draw_bounding_boxes
 from utils import xywh_to_xyxy
+from torchvision.ops import batched_nms
+
 
 # Anchors in pixel space at 384x640 (matching what was used for label assignment)
 ANCHORS_PX = [
@@ -65,27 +67,22 @@ def process_predictions(predictions, img_height, img_width):
     return [torch.cat(dets, dim=0) for dets in all_detections]
 
 
-def nms(detections, iou_threshold=0.5, conf_threshold=0.25):
+def nms(detections, iou_threshold=0.5, conf_threshold=0.25, max_detections=100):
+    """
+    Vectorized NMS using torchvision's batched_nms
+    """
     mask = detections[:, 1] > conf_threshold
     detections = detections[mask]
     if detections.shape[0] == 0:
         return detections
 
-    detections = detections[detections[:, 1].argsort(descending=True)]
-    kept = []
-    while detections.shape[0] > 0:
-        best = detections[0]
-        kept.append(best)
-        if detections.shape[0] == 1:
-            break
-        rest = detections[1:]
-        best_box = xywh_to_xyxy(best[2:6].unsqueeze(0))
-        rest_boxes = xywh_to_xyxy(rest[:, 2:6])
-        ious = box_iou_xyxy(best_box, rest_boxes)
-        same_class = rest[:, 0] == best[0]
-        suppress = same_class & (ious.squeeze(0) >= iou_threshold)
-        detections = rest[~suppress]
-    return torch.stack(kept)
+    boxes_xyxy = xywh_to_xyxy(detections[:, 2:6])
+    scores = detections[:, 1]
+    classes = detections[:, 0].long()
+
+    keep_idxs = batched_nms(boxes_xyxy, scores, classes, iou_threshold)
+    keep_idxs = keep_idxs[:max_detections]
+    return detections[keep_idxs]
 
 
 def box_iou_xyxy(box1, box2):
