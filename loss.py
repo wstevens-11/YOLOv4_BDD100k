@@ -57,6 +57,9 @@ class DetectionLoss(nn.Module):
             # Apply sigmoid to predicted x, y for CIoU comparison
             pred_for_loss = pred.clone()
             pred_for_loss[..., self.C+1:self.C+3] = pred[..., self.C+1:self.C+3].sigmoid()
+            
+            pred_for_loss[..., self.C+3:self.C+5] = pred[..., self.C+3:self.C+5].clamp(min=-10, max=10)
+            pred_for_loss[..., self.C] = pred[..., self.C].clamp(min=-20, max=20)
 
             pred_obj = pred_for_loss[Iobj]
             target_obj = target_enc[Iobj]

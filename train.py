@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--workers', type=int, default=8)
     parser.add_argument('--root', type=str, required=True, help='path to bdd100k root')
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=5e-5)
     parser.add_argument('--checkpoint', type=str, default='', help='path to checkpoint to resume from')
     parser.add_argument('--save_dir', type=str, default='checkpoints/')
     parser.add_argument('--subset', type=int, default=0, help='use only N images (0 = full dataset)')

@@ -18,9 +18,9 @@ class DetectionHead(nn.Module):
         self.num_classes = num_classes
         self.num_output = 5 + num_classes
 
-        self.dec_n3 = ConvBlock(in_channels=256,  out_channels=num_anchors * self.num_output, filter_size=1)
-        self.dec_n4 = ConvBlock(in_channels=512,  out_channels=num_anchors * self.num_output, filter_size=1)
-        self.dec_n5 = ConvBlock(in_channels=1024, out_channels=num_anchors * self.num_output, filter_size=1)
+        self.dec_n3 = nn.Conv2d(256, num_anchors * self.num_output, kernel_size=1)
+        self.dec_n4 = nn.Conv2d(512, num_anchors * self.num_output, kernel_size=1)
+        self.dec_n5 = nn.Conv2d(1024, num_anchors * self.num_output, kernel_size=1)
 
     def forward(self, n3, n4, n5):
         bs, _, h3, w3 = n3.shape
