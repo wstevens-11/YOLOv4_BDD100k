@@ -58,7 +58,7 @@ def load_checkpoint(model, optimizer, scheduler, path, device):
     return checkpoint['epoch'], checkpoint['map50']
 
 
-def train_one_epoch(model, loader, optimizer, loss_fn, device, writer, epoch, scaler):
+def train_one_epoch(model, loader, optimizer, loss_fn, device, writer, epoch):
     model.train()
     running_loss = 0.0
 
@@ -67,16 +67,16 @@ def train_one_epoch(model, loader, optimizer, loss_fn, device, writer, epoch, sc
         targets = [t.to(device) for t in targets]
 
         optimizer.zero_grad()
-        with autocast('cuda'):
-            preds = model(imgs)
-            loss = loss_fn(preds, targets)
+        preds = model(imgs)
+        loss = loss_fn(preds, targets)
 
-        scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
+        if torch.isnan(loss) or torch.isinf(loss):
+            print(f'NaN loss, skipping batch')
+            continue
+
+        loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
-        scaler.step(optimizer)
-        scaler.update()
-
+        optimizer.step()
         running_loss += loss.item()
 
     avg_loss = running_loss / len(loader)
@@ -175,7 +175,7 @@ def main():
     # ── Training loop ─────────────────────────────────────────────────────────
     for epoch in range(start_epoch, args.epochs):
         scaler = GradScaler('cuda')
-        train_loss = train_one_epoch(model, train_loader, optimizer, loss_fn, device, writer, epoch, scaler)
+        train_loss = train_one_epoch(model, train_loader, optimizer, loss_fn, device, writer, epoch)
         val_loss, map50, per_class_ap = validate(model, val_loader, loss_fn, metric, device, writer, epoch)
 
         scheduler.step()
